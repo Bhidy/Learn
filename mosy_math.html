@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mosy Math - Multiplication Table Game</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Lexend+Deca:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        brand: ['"Fredoka One"', 'cursive'],
+                        sans: ['"Lexend Deca"', 'sans-serif'],
+                    },
+                    colors: {
+                        space: {
+                            900: '#0b0f19',
+                            800: '#111827',
+                            700: '#1f2937',
+                        },
+                        neon: {
+                            cyan: '#06b6d4',
+                            pink: '#ec4899',
+                            violet: '#a855f7',
+                            green: '#10b981',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for beautiful icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Lexend Deca', sans-serif;
+            background: radial-gradient(circle at center, #111827 0%, #030712 100%);
+            overflow-x: hidden;
+        }
+        .glow-cyan {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.6), 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+        .glow-pink {
+            text-shadow: 0 0 10px rgba(236, 72, 153, 0.6), 0 0 20px rgba(236, 72, 153, 0.4);
+        }
+        .glow-border {
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+        }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* Custom scrollbar for active tables */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.5);
+            border-radius: 4px;
+        }
+        /* Grid cell bounce animation on hover */
+        .table-cell-interactive {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .table-cell-interactive:hover {
+            transform: scale(1.1) translateY(-3px);
+            z-index: 10;
+        }
+
+        body, button, a, .table-cell-interactive, .screen-panel {
+            cursor: none !important; /* Hide standard cursor for maximum kid appeal */
+        }
+        #custom-cursor {
+            position: fixed;
+            pointer-events: none;
+            z-index: 10000;
+            transform: translate(-50%, -50%);
+            transition: width 0.1s, height 0.1s;
+            font-size: 32px;
+            filter: drop-shadow(0 0 12px rgba(253, 224, 71, 0.9)) drop-shadow(0 0 4px rgba(236, 72, 153, 0.6));
+            user-select: none;
+            display: none;
+            animation: pulse-grow 2s infinite ease-in-out;
+        }
+        @keyframes pulse-grow {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.15); }
+        }
+        @media (max-width: 768px) {
+            /* Keep standard touch controls on mobile to avoid lag */
+            body, button, a, .table-cell-interactive, .screen-panel {
+                cursor: auto !important;
+            }
+            #custom-cursor {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="text-white min-h-screen flex flex-col justify-between selection:bg-pink-500 selection:text-white relative">
+
+    <!-- Magical Custom Kid-Friendly Cursor -->
+    <div id="custom-cursor">⭐</div>
+
+    <!-- Full-screen Crimson Red Alarm Flash Overlay -->
+    <div id="alarm-flash" class="fixed inset-0 bg-red-600/40 backdrop-blur-[1px] opacity-0 pointer-events-none transition-opacity duration-150 z-50"></div>
+
+    <!-- Triumphant Streak Badge Celebration Panel -->
+    <div id="streak-badge" class="fixed top-24 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 text-slate-950 font-brand px-6 py-3 rounded-2xl text-sm sm:text-base shadow-[0_0_25px_rgba(234,179,8,0.7)] scale-0 transition-transform duration-300 pointer-events-none z-40 flex items-center gap-2 border-2 border-white/20">
+        <i class="fas fa-fire text-lg animate-bounce"></i> 
+        <span><span id="streak-count">2</span>x CORRECT STREAK! 🔥 MULTIPLIER UP!</span>
+    </div>
+
+    <div id="particle-bg-container" class="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <canvas id="bg-canvas" class="w-full h-full opacity-30"></canvas>
+    </div>
+
+    <!-- UI Core Layout Wrapper -->
+    <div class="relative z-10 flex flex-col justify-between min-h-screen w-full px-4 sm:px-6 py-4">
+        
+        <!-- Header Section -->
+        <header class="flex justify-between items-center max-w-6xl w-full mx-auto mb-4">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="goToScreen('landing')">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg transform hover:rotate-12 transition duration-300">
+                    <span class="font-brand text-2xl text-white">M</span>
+                </div>
+                <div>
+                    <h1 class="font-brand text-xl sm:text-2xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 hover:scale-105 transition-all">
+                        MOSY MATH
+                    </h1>
+                    <p class="text-[10px] text-gray-400 tracking-widest uppercase">Multiplication Table Arcade</p>
+                </div>
+            </div>
+            
+            <!-- Controls / Sound Indicators -->
+            <div class="flex items-center space-x-4">
+                <button onclick="toggleAudio()" class="w-10 h-10 rounded-full glass-panel flex items-center justify-center hover:bg-white/10 transition-colors border border-white/10" title="Toggle Sound">
+                    <i id="audio-icon" class="fas fa-volume-up text-purple-400"></i>
+                </button>
+                <div class="hidden md:flex items-center space-x-2 bg-space-900/80 px-4 py-1.5 rounded-full border border-white/10 text-xs">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-gray-300">Interactive Mode Active</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-grow flex items-center justify-center max-w-6xl w-full mx-auto py-2">
+
+            <!-- SCREEN 1: LANDING/INTERFACE PAGE -->
+            <div id="screen-landing" class="screen-panel w-full max-w-4xl flex flex-col items-center justify-center text-center py-6">
+                
+                <!-- Game Logo Shield -->
+                <div class="relative mb-6 animate-bounce" style="animation-duration: 4s;">
+                    <div class="absolute inset-0 bg-gradient-to-r from-cyan-500 to-pink-500 rounded-full blur-2xl opacity-20 transform scale-150"></div>
+                    <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-3xl bg-space-800/80 border-2 border-purple-500 flex items-center justify-center shadow-2xl relative">
+                        <i class="fas fa-calculator text-5xl sm:text-6xl text-cyan-400"></i>
+                        <span class="absolute -bottom-2 -right-2 bg-pink-500 text-white font-brand text-xs px-2.5 py-1 rounded-full shadow-lg">2 - 9</span>
+                    </div>
+                </div>
+
+                <h1 class="font-brand text-4xl sm:text-6xl md:text-7xl mb-4 leading-none">
+                    <span class="text-cyan-400 glow-cyan">MOSY</span> 
+                    <span class="text-pink-500 glow-pink">MATH</span>
+                </h1>
+                
+                <p class="text-gray-300 max-w-xl text-sm sm:text-base mb-8 px-4 leading-relaxed font-light">
+                    Embark on a colorful, dynamic mathematical adventure! Master multiplication tables 
+                    <span class="text-cyan-400 font-semibold">2 through 9</span> with satisfying visual effects, spatial audio feedback, and high-energy interactive game modes.
+                </p>
+
+                <!-- Interactive Mode Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl px-4">
+                    
+                    <!-- Mode 1: Table Explorer -->
+                    <div onclick="selectMode('explorer')" class="group glass-panel rounded-2xl p-6 border border-white/5 hover:border-cyan-500/40 cursor-pointer transform hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(6,182,212,0.15)] transition duration-300 flex flex-col items-center">
+                        <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-4 group-hover:scale-110 transition duration-300">
+                            <i class="fas fa-grip-horizontal text-xl"></i>
+                        </div>
+                        <h3 class="font-brand text-lg text-cyan-300 mb-2">Table Explorer</h3>
+                        <p class="text-xs text-gray-400 text-center">Interactive glowing master-grid. Hover elements to construct musical math visuals.</p>
+                    </div>
+
+                    <!-- Mode 2: Bubble Pop Arcade -->
+                    <div onclick="selectMode('bubble-pop')" class="group glass-panel rounded-2xl p-6 border border-white/5 hover:border-pink-500/40 cursor-pointer transform hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(236,72,153,0.15)] transition duration-300 flex flex-col items-center">
+                        <div class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 mb-4 group-hover:scale-110 transition duration-300">
+                            <i class="fas fa-meteor text-xl animate-pulse"></i>
+                        </div>
+                        <h3 class="font-brand text-lg text-pink-300 mb-2">Bubble Pop</h3>
+                        <p class="text-xs text-gray-400 text-center">Pop floating, glowing numbers in real-time. Splatter particles and unlock multiplier combos!</p>
+                    </div>
+
+                    <!-- Mode 3: Speed Run -->
+                    <div onclick="selectMode('speed-run')" class="group glass-panel rounded-2xl p-6 border border-white/5 hover:border-purple-500/40 cursor-pointer transform hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(168,85,247,0.15)] transition duration-300 flex flex-col items-center">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-4 group-hover:scale-110 transition duration-300">
+                            <i class="fas fa-bolt text-xl"></i>
+                        </div>
+                        <h3 class="font-brand text-lg text-purple-300 mb-2">Speed Run</h3>
+                        <p class="text-xs text-gray-400 text-center">Test your memory against a shrinking fusion fusion-reactor timer. Can you score 10/10?</p>
+                    </div>
+
+                </div>
+
+                <!-- Easy Quickplay Call to Action -->
+                <button onclick="selectMode('bubble-pop')" class="mt-8 px-8 py-3.5 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-full font-brand text-lg shadow-[0_4px_20px_rgba(168,85,247,0.4)] hover:shadow-[0_4px_30px_rgba(168,85,247,0.7)] hover:scale-105 active:scale-95 transform transition-all duration-200">
+                    <i class="fas fa-gamepad mr-2"></i> Launch Quick Play
+                </button>
+
+            </div>
+
+            <!-- SCREEN 2: TABLE EXPLORER -->
+            <div id="screen-explorer" class="screen-panel w-full max-w-5xl hidden flex-col">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div>
+                        <h2 class="font-brand text-2xl sm:text-3xl text-cyan-300 flex items-center gap-2">
+                            <i class="fas fa-grip-horizontal"></i> Interactive Table Explorer
+                        </h2>
+                        <p class="text-xs sm:text-sm text-gray-400">Hover rows and columns to trigger harmonious sounds and analyze factors dynamically.</p>
+                    </div>
+                    <button onclick="goToScreen('landing')" class="self-start sm:self-auto px-4 py-1.5 glass-panel border border-white/10 rounded-xl hover:bg-white/10 text-xs transition duration-200">
+                        <i class="fas fa-chevron-left mr-1"></i> Main Menu
+                    </button>
+                </div>
+
+                <!-- Custom Table Controls (Select specific multiplier highlight) -->
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <span class="text-xs text-gray-400 self-center mr-2">Highlight Table:</span>
+                    <button onclick="setTableHighlight('all')" class="table-hl-btn px-3 py-1 text-xs rounded-lg bg-cyan-500/20 text-cyan-200 font-brand transition-colors">All</button>
+                    <!-- Generation loops 2 to 9 multiplier selector buttons -->
+                    <button onclick="setTableHighlight(2)" class="table-hl-btn px-3 py-1 text-xs rounded-lg glass-panel hover:bg-cyan-500/10 text-gray-300 hover:text-cyan-200 font-brand transition-colors">x2</button>
+                    <button onclick="setTableHighlight(3)" class="table-hl-btn px-3 py-1 text-xs rounded-lg glass-panel hover:bg-cyan-500/10 text-gray-300 hover:text-cyan-200 font-brand transition-colors">x3</button>
+                    <button onclick="setTableHighlight(4)" class="table-hl-btn px-3 py-1 text-xs rounded-lg glass-panel hover:bg-cyan-500/10 text-gray-300 hover:text-cyan-200 font-brand transition-colors">x4</button>
+                    <button onclick="setTableHighlight(5)" class="table-hl-btn px-3 py-1 text-xs rounded-lg glass-panel hover:bg-cyan-500/10 text-gray-300 hover:text-cyan-200 font-brand transition-colors">x5</button>
+                    <button onclick="setTableHighlight(6)" class="table-hl-btn px-3 py-1 text-xs rounded-lg glass-panel hover:bg-cyan-500/10 text-gray-300 hover:text-cyan-200 font-brand transition-colors">x6</button>
+                    <button onclick="setTableHighlight(7)" class="table-hl-btn px-3 py-1 text-xs rounded-lg glass-panel hover:bg-cyan-500/10 text-gray-300 hover:text-cyan-200 font-brand transition-colors">x7</button>
+                    <button onclick="setTableHighlight(8)" class="table-hl-btn px-3 py-1 text-xs rounded-lg glass-panel hover:bg-cyan-500/10 text-gray-300 hover:text-cyan-200 font-brand transition-colors">x8</button>
+                    <button onclick="setTableHighlight(9)" class="table-hl-btn px-3 py-1 text-xs rounded-lg glass-panel hover:bg-cyan-500/10 text-gray-300 hover:text-cyan-200 font-brand transition-colors">x9</button>
+                </div>
+
+                <!-- Main Grid Layout -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- The Interactive Matrix -->
+                    <div class="lg:col-span-2 overflow-x-auto w-full glass-panel p-4 rounded-2xl border border-white/5">
+                        <div class="min-w-[480px]">
+                            <!-- Matrix Header Column Legend -->
+                            <div class="grid grid-cols-9 gap-1 text-center mb-1">
+                                <div class="bg-space-800/50 rounded flex items-center justify-center font-brand text-pink-400 h-9 text-sm">×</div>
+                                <div class="bg-space-800 rounded flex items-center justify-center font-brand text-cyan-300 h-9 text-sm border border-cyan-500/10">2</div>
+                                <div class="bg-space-800 rounded flex items-center justify-center font-brand text-cyan-300 h-9 text-sm border border-cyan-500/10">3</div>
+                                <div class="bg-space-800 rounded flex items-center justify-center font-brand text-cyan-300 h-9 text-sm border border-cyan-500/10">4</div>
+                                <div class="bg-space-800 rounded flex items-center justify-center font-brand text-cyan-300 h-9 text-sm border border-cyan-500/10">5</div>
+                                <div class="bg-space-800 rounded flex items-center justify-center font-brand text-cyan-300 h-9 text-sm border border-cyan-500/10">6</div>
+                                <div class="bg-space-800 rounded flex items-center justify-center font-brand text-cyan-300 h-9 text-sm border border-cyan-500/10">7</div>
+                                <div class="bg-space-800 rounded flex items-center justify-center font-brand text-cyan-300 h-9 text-sm border border-cyan-500/10">8</div>
+                                <div class="bg-space-800 rounded flex items-center justify-center font-brand text-cyan-300 h-9 text-sm border border-cyan-500/10">9</div>
+                            </div>
+                            
+                            <!-- Rows (2 to 9) -->
+                            <div id="explorer-grid-container" class="flex flex-col gap-1">
+                                <!-- Generated Dynamically via JS with correct event hooks -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Details Panel -->
+                    <div class="glass-panel p-6 rounded-2xl border border-white/5 flex flex-col justify-between h-full min-h-[320px]">
+                        <div>
+                            <div class="text-xs uppercase tracking-widest text-pink-400 font-semibold mb-1">Equation Focus</div>
+                            <h3 class="font-brand text-3xl text-white mb-4" id="explorer-equation">Select an Equation</h3>
+                            
+                            <div class="space-y-4 mb-6">
+                                <div class="flex justify-between items-center bg-space-800/60 p-3 rounded-xl border border-white/5">
+                                    <span class="text-gray-400 text-sm">Visual Blocks:</span>
+                                    <div id="explorer-visual-dotgrid" class="flex flex-wrap max-w-[160px] gap-1 justify-end">
+                                        <!-- Interactive blocks populated on hover -->
+                                    </div>
+                                </div>
+                                <div class="bg-space-800/60 p-3 rounded-xl border border-white/5">
+                                    <span class="text-gray-400 text-xs block mb-1">Additive Pattern:</span>
+                                    <span id="explorer-pattern" class="text-sm text-cyan-300 font-semibold">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gradient-to-r from-purple-900/40 to-pink-900/40 p-4 rounded-xl border border-pink-500/20">
+                            <h4 class="font-brand text-xs text-pink-300 mb-1"><i class="fas fa-music mr-1"></i> Synth Note Info</h4>
+                            <p class="text-xs text-gray-300 leading-relaxed">
+                                Hovering products creates progressive synth pitches based on the product value. Tap elements to sustain the frequencies!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCREEN 3: BUBBLE POP GAME -->
+            <div id="screen-bubble-pop" class="screen-panel w-full max-w-5xl hidden flex-col">
+                <!-- Info Header -->
+                <div class="flex flex-row justify-between items-center gap-4 mb-3">
+                    <div>
+                        <h2 class="font-brand text-xl sm:text-2xl text-pink-400 flex items-center gap-2">
+                            <i class="fas fa-meteor"></i> Bubble Pop Challenge
+                        </h2>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="goToScreen('landing')" class="px-3.5 py-1.5 glass-panel border border-white/10 rounded-xl hover:bg-white/10 text-xs transition duration-200">
+                            <i class="fas fa-home mr-1"></i> Quit
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Dashboard -->
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <div class="glass-panel px-4 py-2 rounded-xl border border-white/5 flex flex-col justify-center">
+                        <span class="text-[10px] text-gray-400 uppercase font-semibold">Points Score</span>
+                        <span id="bubble-score" class="font-brand text-xl sm:text-2xl text-cyan-300">0000</span>
+                    </div>
+                    <div class="glass-panel px-4 py-2 rounded-xl border border-white/5 flex flex-col justify-center text-center">
+                        <span id="bubble-timer-label" class="text-[10px] text-gray-400 uppercase font-semibold">Time Remaining</span>
+                        <span id="bubble-timer" class="font-brand text-xl sm:text-2xl text-pink-400">60s</span>
+                    </div>
+                    <div class="glass-panel px-4 py-2 rounded-xl border border-white/5 flex flex-col justify-center text-right">
+                        <span class="text-[10px] text-gray-400 uppercase font-semibold">Combo Chain</span>
+                        <span id="bubble-combo" class="font-brand text-xl sm:text-2xl text-purple-300">x1</span>
+                    </div>
+                </div>
+
+                <!-- Question Focus and Game Canvas Area -->
+                <div class="relative w-full glass-panel rounded-2xl overflow-hidden border border-white/10 aspect-[4/3] md:aspect-[16/9] flex flex-col">
+                    
+                    <!-- Top Bar Question Visual -->
+                    <div class="w-full bg-space-900/90 py-3 px-6 flex items-center justify-between border-b border-white/10 z-10">
+                        <span class="text-xs uppercase text-gray-400 tracking-wider">Solve & Tap matching bubble:</span>
+                        <div class="flex items-center space-x-3">
+                            <span id="bubble-question-formula" class="font-brand text-2xl sm:text-3xl text-white glow-cyan">7 × 8 = ?</span>
+                        </div>
+                        <span class="hidden sm:inline text-xs text-pink-400"><i class="fas fa-mouse-pointer mr-1 animate-ping"></i> Move mouse to draw light trail</span>
+                    </div>
+
+                    <!-- Canvas Gameplay Space -->
+                    <div class="relative flex-grow bg-slate-950/80 cursor-crosshair">
+                        <canvas id="game-canvas" class="absolute inset-0 w-full h-full"></canvas>
+                        
+                        <!-- Overlay Countdown Shield -->
+                        <div id="bubble-start-overlay" class="absolute inset-0 bg-space-900/95 flex flex-col items-center justify-center z-20 transition-opacity duration-300">
+                            <div class="text-center p-8 max-w-sm">
+                                <i class="fas fa-rocket text-4xl text-pink-400 mb-3 animate-bounce"></i>
+                                <h3 class="font-brand text-2xl mb-2 text-white">Ready for Launch?</h3>
+                                <p class="text-xs text-gray-400 mb-6 leading-relaxed">
+                                    Bubbles with various numerical answers float. Pop the correct answer to maintain combos and gain points!
+                                </p>
+                                <button onclick="startBubblePopGame()" class="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-500 font-brand rounded-xl shadow-lg hover:shadow-pink-500/40 hover:scale-105 active:scale-95 transition-all">
+                                    Start Playing
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Game Over Overlay -->
+                        <div id="bubble-gameover-overlay" class="absolute inset-0 bg-space-900/95 flex flex-col items-center justify-center z-20 hidden transition-opacity duration-300">
+                            <div class="text-center p-8 max-w-sm">
+                                <i class="fas fa-trophy text-5xl text-yellow-400 mb-4 animate-bounce"></i>
+                                <h3 class="font-brand text-3xl mb-1 text-white">Session Complete</h3>
+                                <p class="text-xs text-cyan-400 font-brand uppercase tracking-widest mb-4">High Score</p>
+                                
+                                <div class="bg-space-800 p-4 rounded-xl border border-white/5 mb-6">
+                                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                        <span>Total Score:</span>
+                                        <span id="final-bubble-score" class="font-brand text-white text-sm">1200</span>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-gray-400">
+                                        <span>Highest Combo:</span>
+                                        <span id="final-bubble-combo" class="font-brand text-pink-400 text-sm">x8</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex space-x-3">
+                                    <button onclick="resetBubbleGame()" class="flex-1 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-500 font-brand rounded-xl text-sm shadow-md hover:scale-105 transition-transform">
+                                        <i class="fas fa-redo mr-1"></i> Try Again
+                                    </button>
+                                    <button onclick="goToScreen('landing')" class="flex-1 py-2.5 bg-space-800 font-brand rounded-xl text-sm border border-white/10 hover:bg-white/5 transition-colors">
+                                        <i class="fas fa-home mr-1"></i> Back
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCREEN 4: SPEED RUN CHALLENGE -->
+            <div id="screen-speed-run" class="screen-panel w-full max-w-xl hidden flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-brand text-xl text-purple-400 flex items-center gap-2">
+                        <i class="fas fa-bolt"></i> Reactor Speed Run
+                    </h2>
+                    <button onclick="goToScreen('landing')" class="px-3 py-1 glass-panel border border-white/10 rounded-xl hover:bg-white/10 text-xs transition duration-200">
+                        <i class="fas fa-home mr-1"></i> Escape
+                    </button>
+                </div>
+
+                <div class="glass-panel p-6 rounded-2xl border border-white/10 relative overflow-hidden">
+                    <!-- Progress Status -->
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-xs text-gray-400">Question <span id="speed-current-q" class="font-bold text-white">1</span> of 10</span>
+                        <span class="text-xs text-purple-400 font-brand uppercase tracking-wider" id="speed-streak-msg">Perfect Run Pending</span>
+                    </div>
+
+                    <!-- Speed Countdown Reactor Bar -->
+                    <div class="w-full bg-space-900 h-3 rounded-full overflow-hidden mb-6 border border-white/5">
+                        <div id="speed-timer-bar" class="h-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 w-full transition-all duration-100 ease-linear"></div>
+                    </div>
+
+                    <!-- Question Container -->
+                    <div class="text-center py-6">
+                        <span class="text-xs text-gray-400 block mb-2 tracking-wider">SOLVE FAST:</span>
+                        <h3 id="speed-question-display" class="font-brand text-5xl sm:text-6xl text-white tracking-widest glow-cyan">3 × 4</h3>
+                    </div>
+
+                    <!-- Option Answers Select Grid -->
+                    <div class="grid grid-cols-2 gap-4 mt-6">
+                        <button onclick="submitSpeedAnswer(0)" id="speed-opt-0" class="speed-opt-btn py-4 rounded-xl bg-space-800 hover:bg-cyan-500/20 hover:border-cyan-500/40 border border-white/5 text-lg font-brand transition-all active:scale-95 duration-150">A</button>
+                        <button onclick="submitSpeedAnswer(1)" id="speed-opt-1" class="speed-opt-btn py-4 rounded-xl bg-space-800 hover:bg-cyan-500/20 hover:border-cyan-500/40 border border-white/5 text-lg font-brand transition-all active:scale-95 duration-150">B</button>
+                        <button onclick="submitSpeedAnswer(2)" id="speed-opt-2" class="speed-opt-btn py-4 rounded-xl bg-space-800 hover:bg-cyan-500/20 hover:border-cyan-500/40 border border-white/5 text-lg font-brand transition-all active:scale-95 duration-150">C</button>
+                        <button onclick="submitSpeedAnswer(3)" id="speed-opt-3" class="speed-opt-btn py-4 rounded-xl bg-space-800 hover:bg-cyan-500/20 hover:border-cyan-500/40 border border-white/5 text-lg font-brand transition-all active:scale-95 duration-150">D</button>
+                    </div>
+
+                    <!-- Active Result Overlay Popup -->
+                    <div id="speed-overlay-feedback" class="absolute inset-0 bg-space-900/90 flex flex-col items-center justify-center z-10 hidden">
+                        <span id="speed-feedback-icon" class="text-6xl mb-3">⚡</span>
+                        <h4 id="speed-feedback-text" class="font-brand text-2xl text-white">Correct!</h4>
+                        <span id="speed-feedback-sub" class="text-xs text-gray-400 mt-2">Initializing next formula...</span>
+                    </div>
+
+                    <!-- Finish Speed Run Screen inside context -->
+                    <div id="speed-overlay-finish" class="absolute inset-0 bg-space-900/95 flex flex-col items-center justify-center z-10 hidden">
+                        <i class="fas fa-atom text-5xl text-cyan-400 mb-4 animate-spin" style="animation-duration: 12s;"></i>
+                        <h4 class="font-brand text-2xl mb-1 text-white">Reactor Finalized</h4>
+                        <p class="text-xs text-gray-400 mb-4">You solved all formulas accurately.</p>
+                        
+                        <div class="bg-space-800 px-6 py-3 rounded-xl border border-white/5 text-center mb-6">
+                            <span class="text-[10px] text-gray-400 uppercase tracking-widest block mb-1">Score Result</span>
+                            <span class="font-brand text-3xl text-cyan-300" id="speed-final-score">8 / 10</span>
+                        </div>
+
+                        <div class="flex space-x-3 w-4/5">
+                            <button onclick="resetSpeedRun()" class="flex-1 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 font-brand rounded-xl text-sm shadow-md hover:scale-105 transition-transform">
+                                <i class="fas fa-sync-alt mr-1"></i> Restart
+                            </button>
+                            <button onclick="goToScreen('landing')" class="flex-1 py-2.5 bg-space-800 font-brand rounded-xl text-sm border border-white/10 hover:bg-white/5 transition-colors">
+                                <i class="fas fa-home mr-1 font-light"></i> Menu
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Dynamic Math Quote Footer -->
+        <footer class="max-w-6xl w-full mx-auto mt-4 text-center">
+            <p id="footer-fact" class="text-xs text-gray-500 italic transition-all duration-500">
+                "Multiplication is shortcut addition! Keep practicing to program math facts directly to your mental core!"
+            </p>
+            <div class="flex justify-center space-x-4 mt-2 text-[11px] text-gray-600">
+                <span>© 2026 Mosy Math Arcade Corp</span>
+                <span>•</span>
+                <span>Engineered for Cosmic Minds</span>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        
+        // Screen Routing & Mode Transition Controller
+        function goToScreen(screenId) {
+            Sounds.buttonClick();
+            
+            // Hide all screen container panels cleanly
+            document.querySelectorAll('.screen-panel').forEach(panel => {
+                panel.classList.add('hidden');
+                panel.classList.remove('flex');
+            });
+            
+            // Safety Cleanups when navigating out of gameplay loops
+            if (screenId !== 'bubble-pop') {
+                stopBubbleGameLoop();
+                resetBubbleGame();
+            }
+            if (screenId !== 'speed-run') {
+                clearInterval(speedInterval);
+            }
+            
+            // Show requested screen panel
+            const target = document.getElementById(`screen-${screenId}`);
+            if (target) {
+                target.classList.remove('hidden');
+                target.classList.add('flex');
+            }
+            
+            // Trigger mode-specific initializers
+            if (screenId === 'explorer') {
+                generateExplorerGrid();
+                setTableHighlight('all');
+            } else if (screenId === 'speed-run') {
+                resetSpeedRun();
+            } else if (screenId === 'bubble-pop') {
+                resetBubbleGame();
+            }
+        }
+
+        // Bridge function for navigation cards
+        function selectMode(mode) {
+            goToScreen(mode);
+        }
+
+        // Table Explorer Grid Generator (Multiplication Grid 2 to 9)
+        let activeHighlightNum = 'all';
+
+        function generateExplorerGrid() {
+            const container = document.getElementById('explorer-grid-container');
+            container.innerHTML = '';
+            
+            for (let r = 2; r <= 9; r++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = "grid grid-cols-9 gap-1 text-center";
+                
+                // Left row multiplier index legend
+                const rowHeader = document.createElement('div');
+                rowHeader.className = "bg-space-800 rounded flex items-center justify-center font-brand text-pink-400 h-10 text-sm border border-pink-500/10";
+                rowHeader.innerText = r;
+                rowDiv.appendChild(rowHeader);
+                
+                // Columns factors 2 to 9
+                for (let c = 2; c <= 9; c++) {
+                    const cell = document.createElement('div');
+                    const product = r * c;
+                    cell.className = `table-cell-interactive bg-space-900/60 rounded flex items-center justify-center font-bold text-sm h-10 border border-white/5 cursor-pointer text-gray-300 hover:text-white hover:bg-purple-600/30 table-cell-r-${r} table-cell-c-${c}`;
+                    cell.innerText = product;
+                    
+                    // Interaction hooks
+                    cell.addEventListener('mouseenter', () => {
+                        highlightExplorerCell(r, c);
+                        Sounds.hover(product * 3);
+                    });
+                    
+                    cell.addEventListener('click', () => {
+                        focusExplorerCell(r, c);
+                        Sounds.cellSelect(product);
+                    });
+                    
+                    rowDiv.appendChild(cell);
+                }
+                
+                container.appendChild(rowDiv);
+            }
+        }
+
+        // Highlights specific multipliers throughout the grid dynamically
+        function setTableHighlight(num) {
+            Sounds.buttonClick();
+            activeHighlightNum = num;
+            
+            document.querySelectorAll('.table-hl-btn').forEach(btn => {
+                btn.classList.remove('bg-cyan-500/20', 'text-cyan-200');
+                btn.classList.add('glass-panel', 'text-gray-300');
+            });
+            
+            const selectedBtn = Array.from(document.querySelectorAll('.table-hl-btn')).find(b => {
+                return num === 'all' ? b.innerText.toLowerCase() === 'all' : b.innerText === `x${num}`;
+            });
+            if (selectedBtn) {
+                selectedBtn.classList.remove('glass-panel', 'text-gray-300');
+                selectedBtn.classList.add('bg-cyan-500/20', 'text-cyan-200');
+            }
+            
+            refreshGridStyles();
+        }
+
+        // Applies active neon grid highlighting indicators
+        function refreshGridStyles() {
+            for (let r = 2; r <= 9; r++) {
+                for (let c = 2; c <= 9; c++) {
+                    const cells = document.querySelectorAll(`.table-cell-r-${r}.table-cell-c-${c}`);
+                    cells.forEach(cell => {
+                        cell.classList.remove('border-cyan-400', 'shadow-[0_0_10px_rgba(6,182,212,0.5)]', 'bg-cyan-950/40');
+                        
+                        if (activeHighlightNum === 'all' || r === activeHighlightNum || c === activeHighlightNum) {
+                            cell.classList.add('border-cyan-400/50', 'bg-cyan-950/20');
+                        } else {
+                            cell.classList.remove('border-cyan-400/50', 'bg-cyan-950/20');
+                        }
+                    });
+                }
+            }
+        }
+
+        // Detailed hover equations updates, additive loops, and visual dot grids
+        function highlightExplorerCell(r, c) {
+            const eqTitle = document.getElementById('explorer-equation');
+            eqTitle.innerHTML = `<span class="text-pink-400">${r}</span> × <span class="text-cyan-400">${c}</span> = <span class="text-yellow-400 glow-border px-2 py-0.5 rounded bg-space-900">${r * c}</span>`;
+            
+            const dotGrid = document.getElementById('explorer-visual-dotgrid');
+            dotGrid.innerHTML = '';
+            
+            for (let rowIdx = 0; rowIdx < r; rowIdx++) {
+                const dotRow = document.createElement('div');
+                dotRow.className = "flex gap-1";
+                for (let colIdx = 0; colIdx < c; colIdx++) {
+                    const dot = document.createElement('span');
+                    dot.className = "w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-cyan-400 to-pink-500 animate-pulse shadow-[0_0_4px_rgba(6,182,212,0.8)]";
+                    dotRow.appendChild(dot);
+                }
+                dotGrid.appendChild(dotRow);
+            }
+            
+            const patternSpan = document.getElementById('explorer-pattern');
+            const patternTerms = Array(r).fill(c);
+            patternSpan.innerText = `${patternTerms.join(' + ')} = ${r * c}`;
+        }
+
+        // Highlight cells visually on-click
+        function focusExplorerCell(r, c) {
+            highlightExplorerCell(r, c);
+            const cells = document.querySelectorAll(`.table-cell-r-${r}.table-cell-c-${c}`);
+            cells.forEach(cell => {
+                cell.classList.add('bg-pink-500', 'text-white');
+                setTimeout(() => {
+                    cell.classList.remove('bg-pink-500', 'text-white');
+                }, 200);
+            });
+        }
+
+        /* =========================================================================
+         * MOSY MATH CHIP-SYNTH SOUND ENGINE (No External URLs, Instant Synthesizer)
+         * ========================================================================= */
+        let audioCtx = null;
+        let isAudioMuted = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Standard dynamic tone synth creator
+        function playTone(freq, type, duration, volDecay = 0.5) {
+            if (isAudioMuted) return;
+            initAudio();
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = type; // 'sine', 'triangle', 'sawtooth', 'square'
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                
+                gain.gain.setValueAtTime(volDecay, audioCtx.currentTime);
+                // Ramp sound down to 0 softly to prevent clicks
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {
+                console.error("Audio Synthesis Interrupted", e);
+            }
+        }
+
+        // Custom Sound Presets
+        const Sounds = {
+            hover: (freqOffset = 0) => {
+                // High sweet chime note
+                const baseNote = 220 + freqOffset; 
+                playTone(baseNote, 'triangle', 0.15, 0.15);
+            },
+            cellSelect: (val) => {
+                // Musical progression matched to product value
+                const freq = 130.81 + (val * 4); // Map value progressively to frequency scale
+                playTone(freq, 'sine', 0.35, 0.35);
+                playTone(freq * 1.5, 'triangle', 0.2, 0.15); // Add minor fifth octave harmony
+            },
+            buttonClick: () => {
+                playTone(600, 'sine', 0.08, 0.2);
+            },
+            bubblePop: () => {
+                // Synthesizes dynamic popping sound (short upward freq pitch sweep)
+                if (isAudioMuted) return;
+                initAudio();
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.08);
+                    
+                    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                    
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+                } catch(e){}
+            },
+            correct: () => {
+                // Beautiful complex dual-harmony chime
+                if (isAudioMuted) return;
+                initAudio();
+                try {
+                    const now = audioCtx.currentTime;
+                    // Sparkly G-major chord progression
+                    const freqs = [392.00, 493.88, 587.33, 783.99]; // G4, B4, D5, G5
+                    freqs.forEach((freq, idx) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now + (idx * 0.04));
+                        gain.gain.setValueAtTime(0.15, now + (idx * 0.04));
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + (idx * 0.04) + 0.3);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now + (idx * 0.04));
+                        osc.stop(now + (idx * 0.04) + 0.35);
+                    });
+                } catch(e){}
+            },
+            wrongAlarm: () => {
+                // Retro alarm sound (low, warning sawtooth pitch modulation)
+                if (isAudioMuted) return;
+                initAudio();
+                try {
+                    const now = audioCtx.currentTime;
+                    // Osc 1 (Main Buzzing tone)
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    osc1.type = 'sawtooth';
+                    osc1.frequency.setValueAtTime(120, now);
+                    // Pulsating alarm sweeps
+                    osc1.frequency.linearRampToValueAtTime(70, now + 0.4);
+
+                    osc2.type = 'square';
+                    osc2.frequency.setValueAtTime(115, now);
+                    osc2.frequency.linearRampToValueAtTime(65, now + 0.4);
+                    
+                    gainNode.gain.setValueAtTime(0.35, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    
+                    osc1.connect(gainNode);
+                    osc2.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    osc1.start(now);
+                    osc2.start(now);
+                    osc1.stop(now + 0.45);
+                    osc2.stop(now + 0.45);
+                } catch(e) {}
+            },
+            streakCelebrate: () => {
+                // Triumphant rising celebration arpeggio
+                if (isAudioMuted) return;
+                initAudio();
+                try {
+                    const now = audioCtx.currentTime;
+                    const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50]; // C Major scale ascent
+                    notes.forEach((freq, idx) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + (idx * 0.06));
+                        gain.gain.setValueAtTime(0.18, now + (idx * 0.06));
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + (idx * 0.06) + 0.4);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now + (idx * 0.06));
+                        osc.stop(now + (idx * 0.06) + 0.5);
+                    });
+                } catch(e){}
+            },
+            comboTrigger: () => {
+                // Happy arpeggio
+                playTone(440, 'triangle', 0.1, 0.2);
+                setTimeout(() => playTone(554, 'triangle', 0.1, 0.2), 80);
+                setTimeout(() => playTone(659, 'triangle', 0.1, 0.2), 160);
+                setTimeout(() => playTone(880, 'triangle', 0.2, 0.2), 240);
+            }
+        };
+
+        function toggleAudio() {
+            isAudioMuted = !isAudioMuted;
+            const icon = document.getElementById('audio-icon');
+            if (isAudioMuted) {
+                icon.className = "fas fa-volume-mute text-pink-500 animate-pulse";
+            } else {
+                icon.className = "fas fa-volume-up text-purple-400";
+                // Play test tone
+                Sounds.buttonClick();
+            }
+        }
+
+        function triggerAlarmFlash() {
+            const flash = document.getElementById('alarm-flash');
+            flash.classList.remove('opacity-0');
+            flash.classList.add('opacity-100');
+            setTimeout(() => {
+                flash.classList.remove('opacity-100');
+                flash.classList.add('opacity-0');
+            }, 350);
+        }
+
+        function triggerStreakCelebration(count = 2) {
+            Sounds.streakCelebrate();
+            
+            // Dynamically update the count in the celebratory badge
+            document.getElementById('streak-count').innerText = count;
+            
+            // Pop the streak visual banner
+            const badge = document.getElementById('streak-badge');
+            badge.classList.remove('scale-0');
+            badge.classList.add('scale-100');
+            
+            // Trigger beautiful decorative canvas explosion if in Bubble Pop Mode
+            if (bubbleGameActive) {
+                for (let step = 0; step < 4; step++) {
+                    setTimeout(() => {
+                        createParticle(gameCanvas.width / 2, gameCanvas.height / 2, '#fbbf24', 20);
+                        createParticle(gameCanvas.width / 2, gameCanvas.height / 2, '#f97316', 15);
+                    }, step * 150);
+                }
+            }
+
+            // Hide the badge after a brief period
+            setTimeout(() => {
+                badge.classList.remove('scale-100');
+                badge.classList.add('scale-0');
+            }, 1800);
+        }
+
+        /* =========================================================================
+         * Dynamic Particle Canvas Background Architecture
+         * ========================================================================= */
+        const bgCanvas = document.getElementById('bg-canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        let bgParticles = [];
+        let canvasW = bgCanvas.width = window.innerWidth;
+        let canvasH = bgCanvas.height = window.innerHeight;
+
+        class BackgroundParticle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvasW;
+                this.y = Math.random() * canvasH;
+                this.size = Math.random() * 2 + 0.5;
+                this.vx = (Math.random() - 0.5) * 0.3;
+                this.vy = -Math.random() * 0.5 - 0.1;
+                this.alpha = Math.random() * 0.5 + 0.1;
+                this.color = Math.random() > 0.5 ? '#06b6d4' : '#ec4899';
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.y < 0) this.reset();
+            }
+            draw() {
+                bgCtx.save();
+                bgCtx.globalAlpha = this.alpha;
+                bgCtx.shadowBlur = 5;
+                bgCtx.shadowColor = this.color;
+                bgCtx.fillStyle = this.color;
+                bgCtx.beginPath();
+                bgCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                bgCtx.fill();
+                bgCtx.restore();
+            }
+        }
+
+        function initBackgroundParticles() {
+            bgParticles = [];
+            const count = Math.min(60, Math.floor(canvasW / 20));
+            for(let i = 0; i < count; i++) {
+                bgParticles.push(new BackgroundParticle());
+            }
+        }
+
+        function animateBackground() {
+            bgCtx.clearRect(0, 0, canvasW, canvasH);
+            for(let p of bgParticles) {
+                p.update();
+                p.draw();
+            }
+            requestAnimationFrame(animateBackground);
+        }
+
+        window.addEventListener('resize', () => {
+            canvasW = bgCanvas.width = window.innerWidth;
+            canvasH = bgCanvas.height = window.innerHeight;
+            initBackgroundParticles();
+        });
+
+        // Initialize Background
+        initBackgroundParticles();
+        animateBackground();
+
+
+        /* =========================================================================
+         * Mode B - Dynamic Bubble Pop Physics & Game Mechanics
+         * ========================================================================= */
+        const gameCanvas = document.getElementById('game-canvas');
+        const gCtx = gameCanvas.getContext('2d');
+        
+        let bubbleGameActive = false;
+        let score = 0;
+        let bubbleCombo = 1;
+        let currentComboStreak = 0; // Tracks consecutive answers for the 3x streak
+        let speedTimerSeconds = 60;
+        let countdownTimer = null;
+        let gameLoopId = null;
+
+        let bubbles = [];
+        let canvasParticles = [];
+        let mouseTrail = [];
+
+        // Question mechanics
+        let currentQuestion = {
+            f1: 0,
+            f2: 0,
+            answer: 0
+        };
+
+        // Track cursor details for canvas interactive glows
+        let cursorCoords = { x: -1000, y: -1000 };
+
+        gameCanvas.addEventListener('mousemove', (e) => {
+            const rect = gameCanvas.getBoundingClientRect();
+            // Scale coords properly mapping to element
+            cursorCoords.x = (e.clientX - rect.left) * (gameCanvas.width / rect.width);
+            cursorCoords.y = (e.clientY - rect.top) * (gameCanvas.height / rect.height);
+            
+            // Generate mouse trail particles (Interactive dynamic motion!)
+            if (Math.random() > 0.4) {
+                createParticle(cursorCoords.x, cursorCoords.y, '#06b6d4', 4);
+                // Soft trace sound
+                if (Math.random() > 0.85) {
+                    Sounds.hover(Math.random() * 50);
+                }
+            }
+        });
+
+        // Add Touch support for mobile canvas interaction
+        gameCanvas.addEventListener('touchmove', (e) => {
+            if(e.touches.length > 0) {
+                const rect = gameCanvas.getBoundingClientRect();
+                const t = e.touches[0];
+                cursorCoords.x = (t.clientX - rect.left) * (gameCanvas.width / rect.width);
+                cursorCoords.y = (t.clientY - rect.top) * (gameCanvas.height / rect.height);
+                createParticle(cursorCoords.x, cursorCoords.y, '#ec4899', 4);
+            }
+        });
+
+        gameCanvas.addEventListener('mousedown', (e) => {
+            handleCanvasTap();
+        });
+
+        gameCanvas.addEventListener('touchstart', (e) => {
+            if(e.touches.length > 0) {
+                const rect = gameCanvas.getBoundingClientRect();
+                const t = e.touches[0];
+                cursorCoords.x = (t.clientX - rect.left) * (gameCanvas.width / rect.width);
+                cursorCoords.y = (t.clientY - rect.top) * (gameCanvas.height / rect.height);
+                handleCanvasTap();
+            }
+        });
+
+        function setupCanvasDimensions() {
+            const rect = gameCanvas.parentNode.getBoundingClientRect();
+            gameCanvas.width = rect.width;
+            gameCanvas.height = rect.height;
+        }
+
+        // Particle model
+        class Bubble {
+            constructor(num, isCorrect) {
+                this.value = num;
+                this.isCorrect = isCorrect;
+                this.radius = Math.max(35, Math.floor(gameCanvas.width / 15));
+                this.x = Math.random() * (gameCanvas.width - this.radius * 2) + this.radius;
+                this.y = gameCanvas.height + this.radius + Math.random() * 150;
+                this.vy = -(Math.random() * 1.5 + 0.8);
+                this.vx = (Math.random() - 0.5) * 0.8;
+                // Generate colorful aesthetics
+                this.hue = Math.floor(Math.random() * 360);
+                this.baseColor = isCorrect ? 'rgba(6, 182, 212, 0.45)' : 'rgba(168, 85, 247, 0.35)';
+                this.pulseTime = Math.random() * 10;
+            }
+
+            update() {
+                this.y += this.vy;
+                this.x += this.vx;
+                this.pulseTime += 0.05;
+
+                // Bounce horizontally off walls
+                if (this.x - this.radius < 0 || this.x + this.radius > gameCanvas.width) {
+                    this.vx *= -1;
+                }
+            }
+
+            draw() {
+                gCtx.save();
+                
+                // Pulse radius slightly
+                const dynamicRadius = this.radius + Math.sin(this.pulseTime) * 3;
+
+                // Draw Bubble Core Outer Glow
+                const grad = gCtx.createRadialGradient(
+                    this.x - dynamicRadius/3, this.y - dynamicRadius/3, dynamicRadius/10,
+                    this.x, this.y, dynamicRadius
+                );
+                
+                if (this.isCorrect) {
+                    grad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                    grad.addColorStop(0.3, 'rgba(6, 182, 212, 0.5)');
+                    grad.addColorStop(1, 'rgba(236, 72, 153, 0.1)');
+                } else {
+                    grad.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+                    grad.addColorStop(0.4, 'rgba(168, 85, 247, 0.4)');
+                    grad.addColorStop(1, 'rgba(15, 23, 42, 0.15)');
+                }
+
+                gCtx.beginPath();
+                gCtx.arc(this.x, this.y, dynamicRadius, 0, Math.PI * 2);
+                gCtx.fillStyle = grad;
+                gCtx.shadowBlur = 15;
+                gCtx.shadowColor = this.isCorrect ? '#06b6d4' : '#a855f7';
+                gCtx.fill();
+
+                // Bubble Specular shine/glint reflection
+                gCtx.beginPath();
+                gCtx.arc(this.x - dynamicRadius/2.5, this.y - dynamicRadius/2.5, dynamicRadius/5, 0, Math.PI * 2);
+                gCtx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+                gCtx.fill();
+
+                // Bubble text value
+                gCtx.shadowBlur = 0;
+                gCtx.fillStyle = '#ffffff';
+                gCtx.font = `bold ${Math.max(14, Math.floor(dynamicRadius * 0.5))}px 'Fredoka One', cursive`;
+                gCtx.textAlign = 'center';
+                gCtx.textBaseline = 'middle';
+                gCtx.fillText(this.value, this.x, this.y);
+
+                gCtx.restore();
+            }
+        }
+
+        // Particle Splatters on pop
+        class BurstParticle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = Math.random() * 4 + 2;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.03 + 0.02;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.1; // Add micro gravity factor
+                this.life -= this.decay;
+            }
+            draw() {
+                gCtx.save();
+                gCtx.globalAlpha = this.life;
+                gCtx.beginPath();
+                gCtx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                gCtx.fillStyle = this.color;
+                gCtx.shadowBlur = 10;
+                gCtx.shadowColor = this.color;
+                gCtx.fill();
+                gCtx.restore();
+            }
+        }
+
+        function createParticle(x, y, color, count = 1) {
+            for (let i = 0; i < count; i++) {
+                canvasParticles.push(new BurstParticle(x, y, color));
+            }
+        }
+
+        // Generate dynamic equations 2 to 9
+        function generateMathQuestion() {
+            const f1 = Math.floor(Math.random() * 8) + 2; // Range: [2 - 9]
+            const f2 = Math.floor(Math.random() * 8) + 2; // Range: [2 - 9]
+            const answer = f1 * f2;
+
+            currentQuestion = { f1, f2, answer };
+
+            // Update DOM element fast
+            document.getElementById('bubble-question-formula').innerText = `${f1} × ${f2} = ?`;
+
+            // Spawn matching target bubbles and distraction distractors
+            spawnBubblesForQuestion(answer);
+        }
+
+        function spawnBubblesForQuestion(correctAnswer) {
+            bubbles = [];
+            
+            // 1. Spawning target correct bubble
+            bubbles.push(new Bubble(correctAnswer, true));
+
+            // 2. Generate plausible incorrect numbers
+            const distractors = new Set();
+            while(distractors.size < 4) {
+                // Generate offsets based on real multipliers or general math patterns
+                const dev = (Math.floor(Math.random() * 5) - 2) * currentQuestion.f1;
+                const alt = correctAnswer + (dev !== 0 ? dev : (Math.random() > 0.5 ? 5 : -5));
+                if (alt > 0 && alt !== correctAnswer) {
+                    distractors.add(alt);
+                }
+            }
+
+            distractors.forEach(val => {
+                bubbles.push(new Bubble(val, false));
+            });
+        }
+
+        function handleCanvasTap() {
+            if (!bubbleGameActive) return;
+
+            // Check if user tapped a bubble
+            let poppedCorrectly = false;
+            let bubbleIndexToPop = -1;
+
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                const b = bubbles[i];
+                const dx = cursorCoords.x - b.x;
+                const dy = cursorCoords.y - b.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < b.radius + 5) {
+                    bubbleIndexToPop = i;
+                    if (b.isCorrect) {
+                        poppedCorrectly = true;
+                    }
+                    break;
+                }
+            }
+
+            if (bubbleIndexToPop !== -1) {
+                const targetBubble = bubbles[bubbleIndexToPop];
+                
+                // Explode particles
+                const color = targetBubble.isCorrect ? '#06b6d4' : '#ef4444';
+                createParticle(targetBubble.x, targetBubble.y, color, 18);
+                
+                if (poppedCorrectly) {
+                    currentComboStreak++;
+                    bubbleCombo++;
+                    
+                    // Trigger streak celebration on every multiple of 2!
+                    if (currentComboStreak % 2 === 0 && currentComboStreak > 0) {
+                        triggerStreakCelebration(currentComboStreak);
+                        // Mega points reward scaling with consecutive matches
+                        score += 300 * (currentComboStreak / 2);
+                    } else {
+                        Sounds.correct();
+                    }
+                    
+                    if (bubbleCombo > 1 && bubbleCombo % 4 === 0) {
+                        Sounds.comboTrigger();
+                    }
+                    
+                    // Award Points
+                    const reward = 100 * bubbleCombo;
+                    score += reward;
+                    
+                    document.getElementById('bubble-score').innerText = String(score).padStart(4, '0');
+                    document.getElementById('bubble-combo').innerText = `x${bubbleCombo}`;
+                    
+                    // Next Level Question
+                    generateMathQuestion();
+                } else {
+                    // Punish score combo breaker & Reset Streak
+                    currentComboStreak = 0;
+                    bubbleCombo = 1;
+                    document.getElementById('bubble-combo').innerText = `x${bubbleCombo}`;
+                    
+                    // Trigger Alarm sound and visual red flash
+                    Sounds.wrongAlarm();
+                    triggerAlarmFlash();
+                    
+                    // Apply visual shake effect to current Canvas container
+                    gameCanvas.classList.add('animate-bounce');
+                    setTimeout(() => gameCanvas.classList.remove('animate-bounce'), 300);
+
+                    // Re-spawn target so the user isn't stuck on incorrect inputs
+                    generateMathQuestion();
+                }
+            }
+        }
+
+        function runGameCycle() {
+            if (!bubbleGameActive) return;
+
+            gCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+            // Update and draw Particles
+            canvasParticles = canvasParticles.filter(p => p.life > 0);
+            for (let p of canvasParticles) {
+                p.update();
+                p.draw();
+            }
+
+            // Update and draw Bubbles
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                const b = bubbles[i];
+                b.update();
+                b.draw();
+
+                // If bubble floats above top margin, wrap it around
+                if (b.y < -b.radius) {
+                    b.y = gameCanvas.height + b.radius;
+                    b.x = Math.random() * (gameCanvas.width - b.radius * 2) + b.radius;
+                }
+            }
+
+            // Draw glowing cursor feedback circle
+            if (cursorCoords.x > -500) {
+                gCtx.save();
+                gCtx.beginPath();
+                gCtx.arc(cursorCoords.x, cursorCoords.y, 8, 0, Math.PI * 2);
+                gCtx.fillStyle = 'rgba(236, 72, 153, 0.5)';
+                gCtx.shadowBlur = 10;
+                gCtx.shadowColor = '#ec4899';
+                gCtx.fill();
+                gCtx.restore();
+            }
+
+            gameLoopId = requestAnimationFrame(runGameCycle);
+        }
+
+        function startBubblePopGame() {
+            Sounds.buttonClick();
+            document.getElementById('bubble-start-overlay').classList.add('hidden');
+            bubbleGameActive = true;
+            score = 0;
+            bubbleCombo = 1;
+            currentComboStreak = 0;
+            speedTimerSeconds = 60;
+
+            document.getElementById('bubble-score').innerText = "0000";
+            document.getElementById('bubble-combo').innerText = "x1";
+            document.getElementById('bubble-timer').innerText = "60s";
+
+            setupCanvasDimensions();
+            generateMathQuestion();
+
+            // Setup real timer logic interval
+            countdownTimer = setInterval(() => {
+                speedTimerSeconds--;
+                document.getElementById('bubble-timer').innerText = `${speedTimerSeconds}s`;
+
+                if (speedTimerSeconds <= 10) {
+                    document.getElementById('bubble-timer').className = "font-brand text-xl sm:text-2xl text-red-500 animate-pulse";
+                }
+
+                if (speedTimerSeconds <= 0) {
+                    finishBubbleGame();
+                }
+            }, 1000);
+
+            runGameCycle();
+        }
+
+        function finishBubbleGame() {
+            stopBubbleGameLoop();
+            
+            // Pop game over layout panel
+            document.getElementById('final-bubble-score').innerText = score;
+            document.getElementById('final-bubble-combo').innerText = `x${bubbleCombo}`;
+            document.getElementById('bubble-gameover-overlay').classList.remove('hidden');
+        }
+
+        function stopBubbleGameLoop() {
+            bubbleGameActive = false;
+            clearInterval(countdownTimer);
+            if (gameLoopId) cancelAnimationFrame(gameLoopId);
+        }
+
+        function resetBubbleGame() {
+            stopBubbleGameLoop();
+            document.getElementById('bubble-start-overlay').classList.remove('hidden');
+            document.getElementById('bubble-gameover-overlay').classList.add('hidden');
+            document.getElementById('bubble-timer').className = "font-brand text-xl sm:text-2xl text-pink-400";
+            setupCanvasDimensions();
+            gCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+        }
+
+
+        /* =========================================================================
+         * Mode C - Speed Run Reactor System
+         * ========================================================================= */
+        let speedCurrentIndex = 0;
+        let speedAnswersRecord = [];
+        let speedInterval = null;
+        let speedTimeRemaining = 100; // Percent based
+        let speedActiveCorrect = 0;
+        let activeSelectionAnswer = -1;
+        let speedConsecutiveStreak = 0; // Tracking consecutive correct choices in speed mode
+
+        const mockEquationsPool = [
+            { f1: 3, f2: 4, a: 12 },
+            { f1: 6, f2: 7, a: 42 },
+            { f1: 8, f2: 9, a: 72 },
+            { f1: 5, f2: 6, a: 30 },
+            { f1: 7, f2: 4, a: 28 },
+            { f1: 9, f2: 3, a: 27 },
+            { f1: 4, f2: 8, a: 32 },
+            { f1: 2, f2: 9, a: 18 },
+            { f1: 6, f2: 6, a: 36 },
+            { f1: 8, f2: 8, a: 64 },
+            { f1: 7, f2: 7, a: 49 },
+            { f1: 9, f2: 6, a: 54 }
+        ];
+
+        let activeSpeedSession = [];
+
+        function resetSpeedRun() {
+            clearInterval(speedInterval);
+            speedCurrentIndex = 0;
+            speedAnswersRecord = [];
+            speedConsecutiveStreak = 0;
+            
+            // Suffle & pick 10 equations
+            activeSpeedSession = [...mockEquationsPool]
+                .sort(() => 0.5 - Math.random())
+                .slice(0, 10);
+
+            document.getElementById('speed-overlay-finish').classList.add('hidden');
+            document.getElementById('speed-overlay-feedback').classList.add('hidden');
+            
+            loadSpeedQuestion();
+        }
+
+        function loadSpeedQuestion() {
+            if (speedCurrentIndex >= 10) {
+                finishSpeedRun();
+                return;
+            }
+
+            document.getElementById('speed-current-q').innerText = speedCurrentIndex + 1;
+            const currentItem = activeSpeedSession[speedCurrentIndex];
+            
+            document.getElementById('speed-question-display').innerText = `${currentItem.f1} × ${currentItem.f2}`;
+
+            // Create choices
+            const correctAns = currentItem.a;
+            const choices = new Set();
+            choices.add(correctAns);
+
+            while(choices.size < 4) {
+                const variation = correctAns + (Math.floor(Math.random() * 5) - 2) * currentItem.f1;
+                const value = variation !== 0 ? variation : Math.floor(Math.random() * 80) + 4;
+                if(value > 0 && value !== correctAns) {
+                    choices.add(value);
+                }
+            }
+
+            const arrChoices = Array.from(choices).sort(() => 0.5 - Math.random());
+            speedActiveCorrect = arrChoices.indexOf(correctAns);
+
+            // Bind values to interface options
+            for(let i = 0; i < 4; i++) {
+                const btn = document.getElementById(`speed-opt-${i}`);
+                btn.innerText = arrChoices[i];
+                btn.className = "speed-opt-btn py-4 rounded-xl bg-space-800 hover:bg-cyan-500/20 hover:border-cyan-500/40 border border-white/5 text-lg font-brand transition-all active:scale-95 duration-150 text-white";
+            }
+
+            // Start countdown timer gauge
+            startSpeedCountdown();
+        }
+
+        function startSpeedCountdown() {
+            clearInterval(speedInterval);
+            speedTimeRemaining = 100;
+            const bar = document.getElementById('speed-timer-bar');
+            bar.style.width = "100%";
+
+            // Shrank speed reactor bar over time
+            speedInterval = setInterval(() => {
+                speedTimeRemaining -= 1.5; // Controls the tick speed (around 7 seconds per formula)
+                bar.style.width = `${speedTimeRemaining}%`;
+
+                if (speedTimeRemaining <= 0) {
+                    clearInterval(speedInterval);
+                    // Time out counts as a wrong answer selection
+                    evaluateSpeedChoice(-1);
+                }
+            }, 100);
+        }
+
+        function submitSpeedAnswer(idx) {
+            clearInterval(speedInterval);
+            evaluateSpeedChoice(idx);
+        }
+
+        function evaluateSpeedChoice(idx) {
+            const isCorrect = (idx === speedActiveCorrect);
+            speedAnswersRecord.push(isCorrect);
+
+            const overlay = document.getElementById('speed-overlay-feedback');
+            const icon = document.getElementById('speed-feedback-icon');
+            const text = document.getElementById('speed-feedback-text');
+
+            if (isCorrect) {
+                speedConsecutiveStreak++;
+                
+                // Trigger streak celebration on every multiple of 2 in Speed Run!
+                if (speedConsecutiveStreak % 2 === 0 && speedConsecutiveStreak > 0) {
+                    triggerStreakCelebration(speedConsecutiveStreak);
+                    icon.innerText = "🔥";
+                    text.innerText = `${speedConsecutiveStreak}x STREAK CELEBRATION!`;
+                    text.className = "font-brand text-2xl text-yellow-400 animate-bounce";
+                } else {
+                    Sounds.correct();
+                    icon.innerText = "⚡";
+                    text.innerText = "Correct!";
+                    text.className = "font-brand text-2xl text-cyan-400";
+                }
+            } else {
+                speedConsecutiveStreak = 0;
+                
+                Sounds.wrongAlarm();
+                triggerAlarmFlash();
+                
+                icon.innerText = "💥";
+                text.innerText = "Reactor Out of Sync";
+                text.className = "font-brand text-2xl text-red-500";
+            }
+
+            // Show short temporary validation panel
+            overlay.classList.remove('hidden');
+
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                speedCurrentIndex++;
+                loadSpeedQuestion();
+            }, 1000);
+        }
+
+        window.addEventListener('load', () => {
+            goToScreen('landing');
+        });
+
+        const customCursor = document.getElementById('custom-cursor');
+        const trailContainer = document.createElement('div');
+        trailContainer.id = 'magical-trail-container';
+        trailContainer.style.position = 'fixed';
+        trailContainer.style.inset = '0';
+        trailContainer.style.pointerEvents = 'none';
+        trailContainer.style.zIndex = '9999';
+        document.body.appendChild(trailContainer);
+
+        let lastMouseX = window.innerWidth / 2;
+        let lastMouseY = window.innerHeight / 2;
+        let cursorAngle = 0;
+        let scaleCursor = 1;
+
+        // Custom cursors array to cycle playful, engaging emojis
+        const magicEmojis = ['⭐', '🪄', '🦄', '🦁', '🚀', '😺', '👾', '🌈', '🍭'];
+        let currentEmojiIndex = 0;
+
+        // Automatically rotate the custom kid cursor emoji every 4 seconds
+        setInterval(() => {
+            currentEmojiIndex = (currentEmojiIndex + 1) % magicEmojis.length;
+            if (customCursor) {
+                customCursor.innerText = magicEmojis[currentEmojiIndex];
+            }
+        }, 4000);
+
+        window.addEventListener('mousemove', (e) => {
+            if (customCursor) {
+                customCursor.style.display = 'block';
+                customCursor.style.left = e.clientX + 'px';
+                customCursor.style.top = e.clientY + 'px';
+                
+                // Rotate the cursor dynamically depending on mouse swipe direction
+                const dx = e.clientX - lastMouseX;
+                const dy = e.clientY - lastMouseY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 2) {
+                    cursorAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+                    customCursor.style.transform = `translate(-50%, -50%) rotate(${cursorAngle + 30}deg) scale(${scaleCursor})`;
+                }
+                
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+            }
+
+            // Spawn bright sparkles and playful bubbles
+            if (Math.random() > 0.4) {
+                spawnGlobalMagicSparkle(e.clientX, e.clientY);
+            }
+        });
+
+        // Tapping/Clicking shrinks and jumps the kid-friendly cursor for sweet tactile feel
+        window.addEventListener('mousedown', () => {
+            scaleCursor = 1.45;
+            if (customCursor) {
+                customCursor.style.transform = `translate(-50%, -50%) rotate(${cursorAngle + 30}deg) scale(${scaleCursor})`;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            scaleCursor = 1.0;
+            if (customCursor) {
+                customCursor.style.transform = `translate(-50%, -50%) rotate(${cursorAngle + 30}deg) scale(${scaleCursor})`;
+            }
+        });
+
+        const magicalColors = ['#ff0055', '#00ffcc', '#ffcc00', '#9900ff', '#33ff00', '#ff6600', '#0099ff', '#ff00aa'];
+        const kidEmojis = ['✨', '⭐', '🎈', '🍭', '🎨', '🔥', '💖', '🐾', '🌈', '🍀', '🍬'];
+
+        function spawnGlobalMagicSparkle(x, y) {
+            const particle = document.createElement('div');
+            const useEmoji = Math.random() > 0.45;
+
+            particle.style.position = 'fixed';
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+            particle.style.pointerEvents = 'none';
+            particle.style.userSelect = 'none';
+            particle.style.zIndex = '9999';
+
+            if (useEmoji) {
+                particle.innerText = kidEmojis[Math.floor(Math.random() * kidEmojis.length)];
+                particle.style.fontSize = (Math.random() * 18 + 12) + 'px';
+            } else {
+                particle.style.width = (Math.random() * 15 + 6) + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.borderRadius = '50%';
+                const color = magicalColors[Math.floor(Math.random() * magicalColors.length)];
+                particle.style.background = color;
+                particle.style.boxShadow = `0 0 14px ${color}, 0 0 4px #ffffff`;
+            }
+
+            // Soft floaty upward physics
+            const vx = (Math.random() - 0.5) * 6;
+            const vy = (Math.random() - 0.5) * 5 - 2.5; 
+            let opacity = 1.0;
+            let scale = 1.0;
+            let rotation = Math.random() * 360;
+            const rotationSpeed = (Math.random() - 0.5) * 16;
+
+            trailContainer.appendChild(particle);
+
+            function updateAnimation() {
+                x += vx;
+                y += vy;
+                opacity -= 0.022;
+                scale -= 0.018;
+                rotation += rotationSpeed;
+
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.opacity = opacity;
+                particle.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(${scale})`;
+
+                if (opacity > 0 && scale > 0) {
+                    requestAnimationFrame(updateAnimation);
+                } else {
+                    particle.remove();
+                }
+            }
+            requestAnimationFrame(updateAnimation);
+        }
+
+    </script>
+</body>
+</html>
